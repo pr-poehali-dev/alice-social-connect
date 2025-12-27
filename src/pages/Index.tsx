@@ -46,27 +46,29 @@ export default function Index() {
   const [messageText, setMessageText] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
   
-  const [friends] = useState<Friend[]>([
-    { id: '1', name: 'Мария Иванова', avatar: '👩', status: 'online' },
-    { id: '2', name: 'Алексей Петров', avatar: '👨', status: 'offline' },
-    { id: '3', name: 'Екатерина Смирнова', avatar: '👧', status: 'online' },
-    { id: '4', name: 'Дмитрий Козлов', avatar: '🧑', status: 'online' },
-  ]);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
 
   const handleRegister = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const newUser: User = {
-      id: '1',
+      id: Date.now().toString(),
       name: formData.get('name') as string,
       phone: formData.get('phone') as string,
       email: formData.get('email') as string,
       avatar: formData.get('avatar') as string || '😊',
     };
     setUser(newUser);
+    setUsers([...users, newUser]);
     setIsRegistered(true);
-    toast.success('Добро пожаловать в Алиса AI!');
+    setShowWelcomeBanner(true);
+    
+    setTimeout(() => {
+      setShowWelcomeBanner(false);
+    }, 5000);
   };
 
   const handleSendMessage = () => {
@@ -81,16 +83,6 @@ export default function Index() {
     
     setMessages([...messages, newMessage]);
     setMessageText('');
-    
-    setTimeout(() => {
-      const response: Message = {
-        id: (Date.now() + 1).toString(),
-        text: 'Спасибо за сообщение! 💜',
-        sender: 'friend',
-        time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages(prev => [...prev, response]);
-    }, 1000);
   };
 
   const handleCall = () => {
@@ -105,9 +97,20 @@ export default function Index() {
     toast.success('Фон изменён!');
   };
 
-  const filteredFriends = friends.filter(friend =>
-    friend.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredUsers = users.filter(u => 
+    u.id !== user?.id && u.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  
+  const handleAddFriend = (friendUser: User) => {
+    const newFriend: Friend = {
+      id: friendUser.id,
+      name: friendUser.name,
+      avatar: friendUser.avatar,
+      status: 'online',
+    };
+    setFriends([...friends, newFriend]);
+    toast.success(`${friendUser.name} добавлен в друзья!`);
+  };
 
   if (!isRegistered) {
     return (
@@ -178,6 +181,24 @@ export default function Index() {
 
   return (
     <div className="min-h-screen p-4">
+      {showWelcomeBanner && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in">
+          <Card className="rounded-3xl border-2 border-primary shadow-xl bg-primary/10 backdrop-blur">
+            <CardContent className="p-4 px-6 flex items-center gap-3">
+              <Icon name="CheckCircle" size={24} className="text-primary" />
+              <p className="font-medium text-lg">Вы успешно зарегистрированы в Алиса AI!</p>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="rounded-full ml-2"
+                onClick={() => setShowWelcomeBanner(false)}
+              >
+                <Icon name="X" size={16} />
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto">
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="grid w-full grid-cols-4 mb-6 rounded-3xl p-2 h-auto">
@@ -247,8 +268,17 @@ export default function Index() {
           </TabsContent>
 
           <TabsContent value="friends" className="space-y-6">
-            <div className="grid gap-4">
-              {friends.map((friend) => (
+            {friends.length === 0 ? (
+              <Card className="rounded-3xl border-2 border-primary/20">
+                <CardContent className="p-12 text-center">
+                  <Icon name="Users" size={48} className="mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-xl font-semibold mb-2">У вас пока нет друзей</h3>
+                  <p className="text-muted-foreground">Найдите пользователей в разделе «Поиск» и добавьте их в друзья</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4">
+                {friends.map((friend) => (
                 <Card
                   key={friend.id}
                   className="rounded-3xl border-2 border-primary/20 hover:shadow-lg transition-all cursor-pointer"
@@ -303,8 +333,9 @@ export default function Index() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             {selectedFriend && (
               <Card className="rounded-3xl border-2 border-primary/20 shadow-lg">
@@ -382,31 +413,41 @@ export default function Index() {
                 </div>
 
                 <div className="space-y-3">
-                  {filteredFriends.map((friend) => (
-                    <div
-                      key={friend.id}
-                      className="flex items-center justify-between p-4 rounded-2xl hover:bg-muted transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-12 w-12">
-                          <AvatarFallback className="text-2xl">{friend.avatar}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h3 className="font-semibold">{friend.name}</h3>
-                          <p className="text-xs text-muted-foreground">
-                            {friend.status === 'online' ? 'В сети' : 'Не в сети'}
-                          </p>
+                  {filteredUsers.map((foundUser) => {
+                    const isAlreadyFriend = friends.some(f => f.id === foundUser.id);
+                    return (
+                      <div
+                        key={foundUser.id}
+                        className="flex items-center justify-between p-4 rounded-2xl hover:bg-muted transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12">
+                            <AvatarFallback className="text-2xl">{foundUser.avatar}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <h3 className="font-semibold">{foundUser.name}</h3>
+                            <p className="text-xs text-muted-foreground">{foundUser.email}</p>
+                          </div>
                         </div>
+                        {isAlreadyFriend ? (
+                          <Button size="sm" variant="outline" className="rounded-2xl" disabled>
+                            <Icon name="Check" size={16} className="mr-2" />
+                            Уже в друзьях
+                          </Button>
+                        ) : (
+                          <Button size="sm" className="rounded-2xl" onClick={() => handleAddFriend(foundUser)}>
+                            <Icon name="UserPlus" size={16} className="mr-2" />
+                            Добавить
+                          </Button>
+                        )}
                       </div>
-                      <Button size="sm" className="rounded-2xl">
-                        <Icon name="UserPlus" size={16} className="mr-2" />
-                        Добавить
-                      </Button>
-                    </div>
-                  ))}
+                    );
+                  })}
                   
-                  {filteredFriends.length === 0 && (
-                    <p className="text-center text-muted-foreground py-8">Ничего не найдено</p>
+                  {filteredUsers.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">
+                      {users.length === 1 ? 'Пока нет других пользователей. Пригласите друзей!' : 'Ничего не найдено'}
+                    </p>
                   )}
                 </div>
               </CardContent>
