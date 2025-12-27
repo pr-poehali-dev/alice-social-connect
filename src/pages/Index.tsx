@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import Icon from '@/components/ui/icon';
@@ -31,6 +31,13 @@ interface Message {
   time: string;
 }
 
+interface SupportMessage {
+  id: string;
+  text: string;
+  sender: 'user' | 'admin';
+  time: string;
+}
+
 const BACKGROUND_COLORS = [
   { name: 'Лаванда', color: 'hsl(270, 50%, 98%)' },
   { name: 'Персик', color: 'hsl(20, 100%, 95%)' },
@@ -47,6 +54,9 @@ export default function Index() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
+  const [showSupportDialog, setShowSupportDialog] = useState(false);
+  const [supportMessages, setSupportMessages] = useState<SupportMessage[]>([]);
+  const [supportText, setSupportText] = useState('');
   
   const [friends, setFriends] = useState<Friend[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -110,6 +120,21 @@ export default function Index() {
     };
     setFriends([...friends, newFriend]);
     toast.success(`${friendUser.name} добавлен в друзья!`);
+  };
+  
+  const handleSendSupport = () => {
+    if (!supportText.trim()) return;
+    
+    const newMessage: SupportMessage = {
+      id: Date.now().toString(),
+      text: supportText,
+      sender: 'user',
+      time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+    };
+    
+    setSupportMessages([...supportMessages, newMessage]);
+    setSupportText('');
+    toast.success('Сообщение отправлено в поддержку!');
   };
 
   if (!isRegistered) {
@@ -481,10 +506,89 @@ export default function Index() {
                     <Icon name="Lock" size={20} className="mr-3" />
                     Приватность
                   </Button>
-                  <Button variant="outline" className="w-full rounded-2xl justify-start" size="lg">
-                    <Icon name="HelpCircle" size={20} className="mr-3" />
-                    Помощь
-                  </Button>
+                  <Dialog open={showSupportDialog} onOpenChange={setShowSupportDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full rounded-2xl justify-start" size="lg">
+                        <Icon name="HelpCircle" size={20} className="mr-3" />
+                        Помощь
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="rounded-3xl max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                          <Icon name="MessageCircleQuestion" size={24} />
+                          Служба поддержки
+                        </DialogTitle>
+                        <DialogDescription>
+                          Опишите вашу проблему, и администратор ответит вам в ближайшее время
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="h-96 overflow-y-auto space-y-3 p-4 bg-muted/30 rounded-2xl">
+                          {supportMessages.length === 0 ? (
+                            <div className="flex items-center justify-center h-full text-center">
+                              <div>
+                                <Icon name="MessageSquare" size={48} className="mx-auto mb-3 text-muted-foreground opacity-50" />
+                                <p className="text-muted-foreground">Начните диалог с поддержкой</p>
+                              </div>
+                            </div>
+                          ) : (
+                            supportMessages.map((msg) => (
+                              <div
+                                key={msg.id}
+                                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                              >
+                                <div
+                                  className={`max-w-md px-4 py-3 rounded-2xl ${
+                                    msg.sender === 'user'
+                                      ? 'bg-primary text-primary-foreground'
+                                      : 'bg-secondary text-secondary-foreground'
+                                  }`}
+                                >
+                                  {msg.sender === 'admin' && (
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Icon name="Shield" size={14} />
+                                      <span className="text-xs font-semibold">Администратор</span>
+                                    </div>
+                                  )}
+                                  <p className="mb-1">{msg.text}</p>
+                                  <p className="text-xs opacity-70">{msg.time}</p>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Напишите ваш вопрос..."
+                            value={supportText}
+                            onChange={(e) => setSupportText(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleSendSupport()}
+                            className="rounded-2xl"
+                          />
+                          <Button onClick={handleSendSupport} className="rounded-2xl">
+                            <Icon name="Send" size={20} />
+                          </Button>
+                        </div>
+                        
+                        <div className="bg-blue-50 p-4 rounded-2xl text-sm">
+                          <div className="flex items-start gap-2">
+                            <Icon name="Info" size={16} className="text-blue-600 mt-0.5" />
+                            <div>
+                              <p className="font-medium text-blue-900 mb-1">Как мы можем помочь?</p>
+                              <ul className="text-blue-700 space-y-1 text-xs">
+                                <li>• Проблемы с регистрацией или входом</li>
+                                <li>• Вопросы по добавлению друзей</li>
+                                <li>• Технические неполадки</li>
+                                <li>• Предложения по улучшению</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </CardContent>
             </Card>
